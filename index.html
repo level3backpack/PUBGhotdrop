@@ -204,12 +204,18 @@
             console.log(`Marker dragged to: ${position.lat}, ${position.lng}`); // Debugging log
         }
 
-        // Click event to place a marker
+        // Click event to place or relocate the existing marker
         map.on('click', (e) => {
-            // Check if user already has a marker before allowing placement
-            if (!markers[userId]) {
-                var lat = e.latlng.lat;
-                var lng = e.latlng.lng;
+            var lat = e.latlng.lat;
+            var lng = e.latlng.lng;
+
+            // Check if user already has a marker
+            if (markers[userId]) {
+                // Move existing marker to the new location
+                markers[userId].setLatLng([lat, lng]);
+                saveMarkerPosition(lat, lng); // Update Firestore with new position
+            } else {
+                // Create a new marker if one doesn't exist
                 var marker = L.marker([lat, lng], { draggable: true }).addTo(map);
                 markers[userId] = marker; // Save marker in markers object
                 dropCount++; // Increment drop count
@@ -218,8 +224,6 @@
 
                 // Add dragend event to update Firestore on drag
                 marker.on('dragend', () => onMarkerDrag(marker));
-            } else {
-                alert("You can only drop one marker!"); // Alert user if they try to drop a second marker
             }
         });
 
