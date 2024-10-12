@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Interactive PUBG Map</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
-    <!-- Google Fonts for Oswald -->
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400&display=swap" rel="stylesheet">
     <style>
         /* Ensure the map takes up the full viewport */
@@ -99,11 +98,11 @@
     
     <!-- Firebase Configuration -->
     <script type="module">
-        // Import Firebase App (the core Firebase SDK)
+        // Import Firebase App and Firestore methods
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js';
         import { getFirestore, collection, addDoc, getDocs, serverTimestamp } from 'https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js';
 
-        // Your web app's Firebase configuration
+        // Your Firebase configuration
         const firebaseConfig = {
             apiKey: "AIzaSyCBDaFyWrw04jKGT4gHjdAuearQQ67Ovek",
             authDomain: "pubghotdrop-4f8e9.firebaseapp.com",
@@ -113,7 +112,7 @@
             appId: "1:557142479346:web:a35b6adbfe92b8585c9b6b"
         };
 
-        // Initialize Firebase
+        // Initialize Firebase and Firestore
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
@@ -150,79 +149,61 @@
             maxZoom: 1 // Maximum zoom level where the heatmap applies
         }).addTo(map);
 
-        // Function to update the position of the console box
-        function updateConsolePosition() {
-            var dropCounter = document.querySelector('.drop-counter');
-            var consoleBox = document.querySelector('.console-box');
-            
-            // Get the width of the drops counter
-            var dropCounterWidth = dropCounter.offsetWidth;
-            
-            // Set the console box's right position dynamically
-            consoleBox.style.right = (dropCounterWidth + 40) + 'px'; // 20px gap on each side
-        }
-
-        // Update the drop counter and text dynamically
+        // Update drop counter function
         function updateDropCounter() {
             var dropText = document.getElementById("dropText");
             var dropCountElement = document.getElementById("dropCount");
-            
             dropCountElement.innerHTML = dropCount;
-
-            // Adjust "drop" vs "drops"
-            if (dropCount === 1) {
-                dropText.innerHTML = "DROP";
-            } else {
-                dropText.innerHTML = "DROPS";
-            }
-
-            // Update console position after changing the drop counter
-            updateConsolePosition();
+            dropText.innerHTML = dropCount === 1 ? "DROP" : "DROPS";
         }
 
-        // Function to save the marker position to local storage
+        // Save marker position to local storage
         function saveMarkerPosition(lat, lng) {
             localStorage.setItem('markerPosition', JSON.stringify({ lat: lat, lng: lng }));
         }
 
-        // Function to load the marker position from local storage
+        // Load marker position from local storage
         function loadMarkerPosition() {
             const position = JSON.parse(localStorage.getItem('markerPosition'));
             if (position) {
-                marker = L.marker([position.lat, position.lng]).addTo(map);
-                markerPlaced = true; // Mark that a marker has been placed
-                dropCount++; // Increase drop count since a marker was loaded
-                updateDropCounter(); // Update the counter UI
-                // Add the loaded location to the heatmap array
-                heatPoints.push([position.lat, position.lng]);
-                heat.setLatLngs(heatPoints); // Update the heatmap with new points
+                placeMarker(position.lat, position.lng);
             }
+        }
+
+        // Function to handle placing the marker
+        function placeMarker(lat, lng) {
+            marker = L.marker([lat, lng], { draggable: true }).addTo(map); // Set marker as draggable
+            markerPlaced = true; // Mark that a marker has been placed
+            dropCount++; // Increase drop count
+            updateDropCounter(); // Update counter UI
+
+            // Add to heatmap points
+            heatPoints.push([lat, lng]);
+            heat.setLatLngs(heatPoints); // Update heatmap with new points
+            
+            // Update marker position in Firestore on drag end
+            marker.on('dragend', function() {
+                var position = marker.getLatLng();
+                saveMarkerPosition(position.lat, position.lng); // Save the new position
+                updateMarkerInFirestore(position.lat, position.lng); // Update Firestore
+            });
+        }
+
+        // Function to update marker in Firestore
+        function updateMarkerInFirestore(lat, lng) {
+            // Add logic to update the existing marker document in Firestore
+            console.log("Marker updated in Firestore:", lat, lng); // Placeholder log
         }
 
         // Function to handle map clicks
         function onMapClick(e) {
             if (!markerPlaced) {
-                // Add the marker for the first time
-                marker = L.marker(e.latlng).addTo(map);
-                markerPlaced = true; // Set the marker as placed
-
-                // Add the clicked location to the heatmap array
-                heatPoints.push([e.latlng.lat, e.latlng.lng]);
-                heat.setLatLngs(heatPoints); // Update the heatmap with new points
-
-                dropCount++; // Increase drop count
-                updateDropCounter(); // Update the counter UI
-
-                // Save the position to local storage
-                saveMarkerPosition(e.latlng.lat, e.latlng.lng);
-
-                // Add marker to Firestore
-                addMarkerToFirestore(e.latlng.lat, e.latlng.lng);
+                placeMarker(e.latlng.lat, e.latlng.lng); // Place marker at clicked location
+                saveMarkerPosition(e.latlng.lat, e.latlng.lng); // Save position to local storage
+                addMarkerToFirestore(e.latlng.lat, e.latlng.lng); // Add to Firestore
             } else {
-                // Update the marker position
-                marker.setLatLng(e.latlng);
-                // Save the new position to local storage
-                saveMarkerPosition(e.latlng.lat, e.latlng.lng);
+                marker.setLatLng(e.latlng); // Update existing marker position
+                saveMarkerPosition(e.latlng.lat, e.latlng.lng); // Save new position
             }
         }
 
@@ -240,17 +221,13 @@
             db.collection("markers").get().then((querySnapshot) => {
                 querySnapshot.forEach((doc) => {
                     const data = doc.data();
-                    const marker = L.marker([data.latitude, data.longitude]).addTo(map);
-                    heatPoints.push([data.latitude, data.longitude]); // Add to heatmap points
+                    placeMarker(data.latitude, data.longitude); // Place marker for each document
                 });
-                heat.setLatLngs(heatPoints); // Update heatmap with all points
             });
         }
 
-        // Load the marker position on initial load
+        // Load marker position and markers on initial load
         loadMarkerPosition();
-        
-        // Load markers from Firestore
         loadMarkersFromFirestore();
 
         // Add event listener for map clicks
