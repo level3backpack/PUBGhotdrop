@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Interactive PUBG Map</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+    <!-- Google Fonts for Oswald -->
     <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400&display=swap" rel="stylesheet">
     <style>
         /* Ensure the map takes up the full viewport */
@@ -96,27 +97,25 @@
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
     
-<!-- Firebase Configuration -->
-<script type="module">
-    // Import Firebase App (the core Firebase SDK)
-    import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js';
-    import { getFirestore, collection, addDoc, getDocs, serverTimestamp } from 'https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js';
+    <!-- Firebase Configuration -->
+    <script type="module">
+        // Import Firebase App (the core Firebase SDK)
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js';
+        import { getFirestore, collection, addDoc, getDocs, serverTimestamp } from 'https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js';
 
-    // Your web app's Firebase configuration
-    const firebaseConfig = {
-        apiKey: "AIzaSyCBDaFyWrw04jKGT4gHjdAuearQQ67Ovek",
-        authDomain: "pubghotdrop-4f8e9.firebaseapp.com",
-        projectId: "pubghotdrop-4f8e9",
-        storageBucket: "pubghotdrop-4f8e9.appspot.com",
-        messagingSenderId: "557142479346",
-        appId: "1:557142479346:web:a35b6adbfe92b8585c9b6b"
-    };
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCBDaFyWrw04jKGT4gHjdAuearQQ67Ovek",
+            authDomain: "pubghotdrop-4f8e9.firebaseapp.com",
+            projectId: "pubghotdrop-4f8e9",
+            storageBucket: "pubghotdrop-4f8e9.appspot.com",
+            messagingSenderId: "557142479346",
+            appId: "1:557142479346:web:a35b6adbfe92b8585c9b6b"
+        };
 
-    // Initialize Firebase
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-</script>
-
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
 
         // Initialize the map
         var map = L.map('map', {
@@ -232,7 +231,7 @@
             db.collection("markers").add({
                 latitude: lat,
                 longitude: lng,
-                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                timestamp: serverTimestamp()
             });
         }
 
