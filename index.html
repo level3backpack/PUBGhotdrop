@@ -97,7 +97,25 @@
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
 
+    <!-- Import Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.14.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.14.0/firebase-firestore.js"></script>
+
     <script>
+        // Your web app's Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyCBDaFyWrw04jKGT4gHjdAuearQQ67Ovek", // Replace with your actual API key
+            authDomain: "pubghotdrop-4f8e9.firebaseapp.com",
+            projectId: "pubghotdrop-4f8e9",
+            storageBucket: "pubghotdrop-4f8e9.appspot.com",
+            messagingSenderId: "557142479346",
+            appId: "1:557142479346:web:a35b6adbfe92b8585c9b6b"
+        };
+
+        // Initialize Firebase
+        const app = firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
         // Initialize the map
         var map = L.map('map', {
             crs: L.CRS.Simple,
@@ -161,23 +179,29 @@
             updateConsolePosition();
         }
 
-        // Function to save the marker position to local storage
-        function saveMarkerPosition(lat, lng) {
-            localStorage.setItem('markerPosition', JSON.stringify({ lat: lat, lng: lng }));
+        // Function to load markers from Firestore
+        function loadMarkers() {
+            db.collection("markers").get().then((querySnapshot) => {
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const lat = data.lat;
+                    const lng = data.lng;
+                    // Add a marker for each position loaded from Firestore
+                    const marker = L.marker([lat, lng]).addTo(map);
+                    heatPoints.push([lat, lng]); // Add to heatmap points
+                });
+                heat.setLatLngs(heatPoints); // Update the heatmap
+                dropCount += querySnapshot.size; // Update drop count
+                updateDropCounter(); // Update the UI
+            });
         }
 
-        // Function to load the marker position from local storage
-        function loadMarkerPosition() {
-            const position = JSON.parse(localStorage.getItem('markerPosition'));
-            if (position) {
-                marker = L.marker([position.lat, position.lng]).addTo(map);
-                markerPlaced = true; // Mark that a marker has been placed
-                dropCount++; // Increase drop count since a marker was loaded
-                updateDropCounter(); // Update the counter UI
-                // Add the loaded location to the heatmap array
-                heatPoints.push([position.lat, position.lng]);
-                heat.setLatLngs(heatPoints); // Update the heatmap with new points
-            }
+        // Function to save the marker position to Firestore
+        function saveMarkerToFirestore(lat, lng) {
+            db.collection("markers").add({
+                lat: lat,
+                lng: lng
+            });
         }
 
         // Function to handle map clicks
@@ -194,30 +218,23 @@
                 dropCount++; // Increase drop count
                 updateDropCounter(); // Update the counter UI
 
-                // Save the position to local storage
-                saveMarkerPosition(e.latlng.lat, e.latlng.lng);
+                // Save the position to Firestore
+                saveMarkerToFirestore(e.latlng.lat, e.latlng.lng);
             } else {
                 // Update the marker position
                 marker.setLatLng(e.latlng);
 
-                // Optionally, update heatmap when the drop location is changed
+                // Optionally, update heatmap when the drop location changes
                 heatPoints[heatPoints.length - 1] = [e.latlng.lat, e.latlng.lng];
-                heat.setLatLngs(heatPoints); // Update the heatmap
-
-                // Save the new position to local storage
-                saveMarkerPosition(e.latlng.lat, e.latlng.lng);
+                heat.setLatLngs(heatPoints); // Update the heatmap with new points
             }
         }
 
-        // Event listener for map clicks
+        // Attach the click event to the map
         map.on('click', onMapClick);
 
-        // Initially set the console box position correctly after DOM is loaded
-        document.addEventListener("DOMContentLoaded", function() {
-            loadMarkerPosition(); // Load the marker position on page load
-            updateConsolePosition();
-        });
-
+        // Load existing markers from Firestore when the page loads
+        loadMarkers();
     </script>
 </body>
 </html>
