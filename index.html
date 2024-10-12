@@ -5,9 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PUBG Hot Drop Map</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet-heatmap/leaflet-heatmap.css" />
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet-heatmap/leaflet-heatmap.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.20.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.20.0/firebase-firestore.js"></script>
     <style>
@@ -37,9 +35,6 @@
             maxZoom: 19,
         }).addTo(map);
 
-        // Heatmap layer
-        const heat = L.heatLayer([], { radius: 25 }).addTo(map);
-        let heatPoints = [];
         let dropCount = 0; // Initialize drop count
         let markerPlaced = false;
         let marker;
@@ -54,11 +49,9 @@
             db.collection("markers").get().then((snapshot) => {
                 snapshot.forEach((doc) => {
                     const data = doc.data();
-                    const marker = L.marker([data.lat, data.lng]).addTo(map);
-                    heatPoints.push([data.lat, data.lng]);
+                    L.marker([data.lat, data.lng]).addTo(map);
                 });
-                heat.setLatLngs(heatPoints); // Update heatmap with loaded points
-                dropCount = heatPoints.length; // Update drop count based on loaded markers
+                dropCount = snapshot.size; // Update drop count based on loaded markers
                 updateDropCounter(); // Update the counter UI
             }).catch((error) => {
                 console.error("Error loading markers: ", error);
@@ -87,14 +80,6 @@
                 // Add the marker for the first time
                 marker = L.marker(e.latlng).addTo(map);
                 markerPlaced = true; // Set the marker as placed
-
-                // Check if the point already exists in heatPoints
-                const pointExists = heatPoints.some(point => point[0] === e.latlng.lat && point[1] === e.latlng.lng);
-                if (!pointExists) {
-                    // Add the clicked location to the heatmap array
-                    heatPoints.push([e.latlng.lat, e.latlng.lng]);
-                    heat.setLatLngs(heatPoints); // Update the heatmap with new points
-                }
 
                 dropCount++; // Increase drop count
                 updateDropCounter(); // Update the counter UI
