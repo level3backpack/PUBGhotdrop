@@ -1,212 +1,88 @@
-rom this on<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive PUBG Map</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
-    <!-- Google Fonts for Oswald -->
-    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400&display=swap" rel="stylesheet">
+    <title>PUBG Hot Drop Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    
+    <!-- Firebase libraries -->
+    <script src="https://www.gstatic.com/firebasejs/9.20.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.20.0/firebase-firestore.js"></script>
+    
     <style>
-        /* Ensure the map takes up the full viewport */
-        #map {
-            height: 100vh; /* Full viewport height */
-            width: 100vw;  /* Full viewport width */
-            overflow: hidden; /* Prevent overflow */
-        }
-        body, html {
-            margin: 0; /* No margins */
-            padding: 0; /* No padding */
-            height: 100%; /* Full height */
-            width: 100%; /* Full width */
-            font-family: Arial, sans-serif; /* Clean font for mobile readability */
-            overflow: hidden; /* Prevent scrolling */
-        }
-        @media (max-width: 768px) {
-            /* Adjust marker size for mobile devices */
-            .leaflet-marker-icon {
-                width: 40px; /* Adjust marker size for mobile */
-                height: auto; /* Keep aspect ratio */
-            }
-        }
-        /* Style for the floating Twitter handle */
-        .twitter-handle {
-            position: absolute;
-            bottom: 20px; /* Distance from the bottom */
-            left: 20px; /* Distance from the left */
-            color: white; /* White text color */
-            padding: 10px; /* Padding for the text */
-            border-radius: 5px; /* Rounded corners */
-            font-size: 16px; /* Font size */
-            text-decoration: none; /* Remove underline */
-            z-index: 1000; /* Bring to front */
-            display: flex; /* Flex container for alignment */
-            align-items: center; /* Center items vertically */
-            background-color: rgba(0, 0, 0, 0.4); /* Semi-transparent black background at 40% opacity */
-        }
-        .twitter-handle img {
-            height: 1em; /* Match the height to the font size */
-            margin-right: 5px; /* Space between logo and text */
-        }
-        .twitter-handle:hover {
-            opacity: 0.8; /* Slightly change opacity on hover */
-        }
-
-        /* Counter and Console Box Styling */
-        .drop-counter, .console-box {
-            position: absolute;
-            top: 20px;
-            color: white;
-            padding: 10px;
-            border-radius: 5px;
-            font-size: 20px;
-            z-index: 1000;
-            display: flex;
-            align-items: center;
-            background-color: rgba(0, 0, 0, 0.4);
-            font-family: 'Oswald', sans-serif; /* Set Oswald font */
-        }
-        .drop-counter {
-            right: 20px; /* Fixed on the right */
-        }
-        .console-box {
-            position: absolute;
-            top: 20px;
-            right: calc(20px + 100px); /* Placeholder to calculate dynamically */
-        }
+        #map { height: 600px; }
+        #dropCounter { position: absolute; top: 10px; right: 10px; background: white; padding: 10px; z-index: 1000; }
     </style>
 </head>
 <body>
     <div id="map"></div>
+    <div id="dropCounter">Drops: <span id="dropCount">0</span></div>
 
-    <a href="https://www.x.com/level3backpack" target="_blank" class="twitter-handle">
-        <img src="x-logo.png" alt="X Logo"> level3backpack
-    </a>
-
-    <!-- Console box -->
-    <div class="console-box">
-        <span>CONSOLE</span>
-    </div>
-
-    <!-- Player drops counter -->
-    <div class="drop-counter">
-        <span id="dropCount" style="font-weight:bold; margin-right:5px;">0</span> <span id="dropText">DROPS</span>
-    </div>
-
-    <!-- Load Leaflet and Heatmap Plugins -->
-    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
-    
-    <!-- Firebase Configuration -->
-    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore.js"></script>
     <script>
-        // Your web app's Firebase configuration
+        // Your Firebase configuration
         const firebaseConfig = {
-            apiKey: "AIzaSyCBDaFyWrw04jKGT4gHjdAuearQQ67Ovek",
-            authDomain: "pubghotdrop-4f8e9.firebaseapp.com",
-            projectId: "pubghotdrop-4f8e9",
-            storageBucket: "pubghotdrop-4f8e9.appspot.com",
-            messagingSenderId: "557142479346",
-            appId: "1:557142479346:web:a35b6adbfe92b8585c9b6b"
+            // Add your Firebase configuration details here
         };
 
         // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.firestore();
+        const app = firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore(app);
 
-        // Initialize the map
-        var map = L.map('map', {
-            crs: L.CRS.Simple,
-            minZoom: -2,
-            maxZoom: 2,
-            zoomSnap: 0.1,
-            zoomDelta: 0.1
-        });
+        // Initialize map
+        const map = L.map('map').setView([0, 0], 2); // Initial view set to a global view
 
-        // Load your high-resolution custom map image
-        var mapBounds = [[0, 0], [8192, 8192]];
-        var imageUrl = 'https://dimgrey-dog-662916.hostingersite.com/wp-content/uploads/2024/10/erangel.png'; // The path to your high-res custom map image
-        L.imageOverlay(imageUrl, mapBounds).addTo(map);
-
-        // Restrict the map to the image boundaries
-        map.setMaxBounds(mapBounds);
-
-        // Set initial zoom level
-        var initialZoom = -2; 
-        map.setView([4096, 4096], initialZoom); 
-
-        var marker; // Store the marker
-        var markerPlaced = false; // Track if a marker has been placed
-        var heatPoints = []; // Array to hold heatmap points
-        var dropCount = 0; // Track number of drops
-
-        // Initialize the heatmap layer
-        var heat = L.heatLayer(heatPoints, { 
-            radius: 50, // Adjust the radius of each point
-            blur: 25, // Blurring factor for the heatmap
-            maxZoom: 1 // Maximum zoom level where the heatmap applies
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
         }).addTo(map);
 
-        // Function to update the position of the console box
-        function updateConsolePosition() {
-            var dropCounter = document.querySelector('.drop-counter');
-            var consoleBox = document.querySelector('.console-box');
-            
-            // Get the width of the drops counter
-            var dropCounterWidth = dropCounter.offsetWidth;
-            
-            // Set the console box's right position dynamically
-            consoleBox.style.right = (dropCounterWidth + 40) + 'px'; // 20px gap on each side
-        }
+        let dropCount = 0; // Initialize drop count
+        let markerPlaced = false;
+        let marker;
 
-        // Update the drop counter and text dynamically
+        // Function to update drop counter UI
         function updateDropCounter() {
-            var dropText = document.getElementById("dropText");
-            var dropCountElement = document.getElementById("dropCount");
-            
-            dropCountElement.innerHTML = dropCount;
-
-            // Adjust "drop" vs "drops"
-            if (dropCount === 1) {
-                dropText.innerHTML = "DROP";
-            } else {
-                dropText.innerHTML = "DROPS";
-            }
-
-            // Update console position after changing the drop counter
-            updateConsolePosition();
+            document.getElementById('dropCount').innerText = dropCount;
         }
 
-        // Function to save the marker position to local storage
-        function saveMarkerPosition(lat, lng) {
-            localStorage.setItem('markerPosition', JSON.stringify({ lat: lat, lng: lng }));
-        }
-
-        // Function to load the marker position from local storage
-        function loadMarkerPosition() {
-            const position = JSON.parse(localStorage.getItem('markerPosition'));
-            if (position) {
-                marker = L.marker([position.lat, position.lng]).addTo(map);
-                markerPlaced = true; // Mark that a marker has been placed
-                dropCount++; // Increase drop count since a marker was loaded
+        // Load markers from Firestore
+        function loadMarkersFromFirestore() {
+            db.collection("markers").get().then((snapshot) => {
+                snapshot.forEach((doc) => {
+                    const data = doc.data();
+                    L.marker([data.lat, data.lng]).addTo(map);
+                });
+                dropCount = snapshot.size; // Update drop count based on loaded markers
                 updateDropCounter(); // Update the counter UI
-                // Add the loaded location to the heatmap array
-                heatPoints.push([position.lat, position.lng]);
-                heat.setLatLngs(heatPoints); // Update the heatmap with new points
-            }
+            }).catch((error) => {
+                console.error("Error loading markers: ", error);
+            });
         }
 
-        // Function to handle map clicks
+        // Save marker position to local storage
+        function saveMarkerPosition(lat, lng) {
+            localStorage.setItem('markerPosition', JSON.stringify({ lat, lng }));
+        }
+
+        // Add marker to Firestore
+        function addMarkerToFirestore(lat, lng) {
+            db.collection("markers").add({ lat, lng })
+                .then(() => {
+                    console.log("Marker added to Firestore");
+                })
+                .catch((error) => {
+                    console.error("Error adding marker: ", error);
+                });
+        }
+
+        // Handle map clicks
         function onMapClick(e) {
             if (!markerPlaced) {
                 // Add the marker for the first time
                 marker = L.marker(e.latlng).addTo(map);
                 markerPlaced = true; // Set the marker as placed
-
-                // Add the clicked location to the heatmap array
-                heatPoints.push([e.latlng.lat, e.latlng.lng]);
-                heat.setLatLngs(heatPoints); // Update the heatmap with new points
 
                 dropCount++; // Increase drop count
                 updateDropCounter(); // Update the counter UI
@@ -218,42 +94,22 @@ rom this on<!DOCTYPE html>
                 addMarkerToFirestore(e.latlng.lat, e.latlng.lng);
             } else {
                 // Update the marker position
-                marker.setLatLng(e.latlng);
-                // Save the new position to local storage
-                saveMarkerPosition(e.latlng.lat, e.latlng.lng);
+                const oldLatLng = marker.getLatLng();
+                
+                // If the new position is different, update it
+                if (oldLatLng.lat !== e.latlng.lat || oldLatLng.lng !== e.latlng.lng) {
+                    marker.setLatLng(e.latlng);
+                    // Save the new position to local storage
+                    saveMarkerPosition(e.latlng.lat, e.latlng.lng);
+                }
             }
         }
 
-        // Function to add marker to Firestore
-        function addMarkerToFirestore(lat, lng) {
-            db.collection("markers").add({
-                latitude: lat,
-                longitude: lng,
-                timestamp: firebase.firestore.FieldValue.serverTimestamp()
-            });
-        }
-
-        // Function to load markers from Firestore
-        function loadMarkersFromFirestore() {
-            db.collection("markers").get().then((querySnapshot) => {
-                querySnapshot.forEach((doc) => {
-                    const data = doc.data();
-                    const marker = L.marker([data.latitude, data.longitude]).addTo(map);
-                    heatPoints.push([data.latitude, data.longitude]); // Add to heatmap points
-                });
-                heat.setLatLngs(heatPoints); // Update heatmap with all points
-            });
-        }
-
-        // Load the marker position on initial load
-        loadMarkerPosition();
-        
-        // Load markers from Firestore
+        // Load existing markers on initialization
         loadMarkersFromFirestore();
 
-        // Add event listener for map clicks
+        // Attach click event to the map
         map.on('click', onMapClick);
     </script>
 </body>
 </html>
-rom this o
