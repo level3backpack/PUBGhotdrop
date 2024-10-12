@@ -176,10 +176,41 @@
                     updateDropCounter(); // Update the UI
 
                     // Add dragend event to update Firestore on drag
-                    marker.on('dragend', () => onMarkerDrag(marker));
+                    marker.on('dragend', () => {
+                        var newPos = marker.getLatLng();
+                        saveMarkerPosition(newPos.lat, newPos.lng);
+                    });
+
+                    // Allow marker to be moved by clicking on the map
+                    map.on('click', function(e) {
+                        marker.setLatLng(e.latlng);
+                        saveMarkerPosition(e.latlng.lat, e.latlng.lng);
+                    });
+                } else {
+                    // If no marker exists for the user, allow placement of a new marker
+                    allowMarkerPlacement();
                 }
             }).catch((error) => {
                 console.error("Error loading marker position: ", error);
+            });
+        }
+
+        // Allow user to place a new marker if none exists
+        function allowMarkerPlacement() {
+            map.on('click', function(e) {
+                if (!markers[userId]) { // Only allow placement if no marker exists
+                    var newMarker = L.marker(e.latlng, { draggable: true }).addTo(map);
+                    markers[userId] = newMarker; // Save marker in markers object
+                    dropCount++; // Increment drop count
+                    updateDropCounter(); // Update UI
+                    saveMarkerPosition(e.latlng.lat, e.latlng.lng); // Save position to Firestore
+
+                    // Add dragend event to update Firestore on drag
+                    newMarker.on('dragend', () => {
+                        var newPos = newMarker.getLatLng();
+                        saveMarkerPosition(newPos.lat, newPos.lng);
+                    });
+                }
             });
         }
 
@@ -197,42 +228,9 @@
             });
         }
 
-        // Handle marker drag event
-        function onMarkerDrag(marker) {
-            var position = marker.getLatLng();
-            saveMarkerPosition(position.lat, position.lng); // Save updated marker position
-            console.log(`Marker dragged to: ${position.lat}, ${position.lng}`); // Debugging log
-        }
-
-        // Click event to place or relocate the existing marker
-        map.on('click', (e) => {
-            var lat = e.latlng.lat;
-            var lng = e.latlng.lng;
-
-            // Check if user already has a marker
-            if (markers[userId]) {
-                // Move existing marker to the new location
-                markers[userId].setLatLng([lat, lng]);
-                saveMarkerPosition(lat, lng); // Update Firestore with new position
-            } else {
-                // Create a new marker if one doesn't exist
-                var marker = L.marker([lat, lng], { draggable: true }).addTo(map);
-                markers[userId] = marker; // Save marker in markers object
-                dropCount++; // Increment drop count
-                saveMarkerPosition(lat, lng); // Save position to Firestore
-                updateDropCounter(); // Update drop counter
-
-                // Add dragend event to update Firestore on drag
-                marker.on('dragend', () => onMarkerDrag(marker));
-            }
-        });
-
-        // Load all markers when the page loads
-        window.onload = function() {
-            loadAllMarkersFromFirestore(); // Load all markers
-            loadMarkerFromFirestore(); // Load the current user's marker
-        };
-
+        // Initial load of all markers and user's marker
+        loadAllMarkersFromFirestore();
+        loadMarkerFromFirestore();
     </script>
 </body>
 </html>
