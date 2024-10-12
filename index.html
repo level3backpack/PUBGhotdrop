@@ -183,14 +183,30 @@
             });
         }
 
-        // Load the marker on page load
-        window.onload = function() {
-            loadMarkerFromFirestore();
-        };
+        // Load all markers from Firestore to display on the map
+        function loadAllMarkersFromFirestore() {
+            db.collection("markers").get().then((querySnapshot) => {
+                querySnapshot.forEach((doc) => {
+                    var position = doc.data();
+                    var markerId = doc.id; // Use document ID as marker ID
+                    console.log(`Loaded marker position for ${markerId}: ${position.latitude}, ${position.longitude}`); // Debugging log
+                    L.marker([position.latitude, position.longitude]).addTo(map); // Add marker to map for each user
+                });
+            }).catch((error) => {
+                console.error("Error loading markers: ", error);
+            });
+        }
 
-        // Add event listener for map clicks
+        // Handle marker drag event
+        function onMarkerDrag(marker) {
+            var position = marker.getLatLng();
+            saveMarkerPosition(position.lat, position.lng); // Save updated marker position
+            console.log(`Marker dragged to: ${position.lat}, ${position.lng}`); // Debugging log
+        }
+
+        // Click event to place a marker
         map.on('click', (e) => {
-            // Only allow marker placement if the user has no marker
+            // Check if user already has a marker before allowing placement
             if (!markers[userId]) {
                 var lat = e.latlng.lat;
                 var lng = e.latlng.lng;
@@ -206,27 +222,6 @@
                 alert("You can only drop one marker!"); // Alert user if they try to drop a second marker
             }
         });
-
-        // Handle marker drag event
-        function onMarkerDrag(marker) {
-            var position = marker.getLatLng();
-            saveMarkerPosition(position.lat, position.lng); // Save updated marker position
-            console.log(`Marker dragged to: ${position.lat}, ${position.lng}`); // Debugging log
-        }
-
-        // Load all markers from Firestore to display on the map
-        function loadAllMarkersFromFirestore() {
-            db.collection("markers").get().then((querySnapshot) => {
-                querySnapshot.forEach((doc) => {
-                    var position = doc.data();
-                    var markerId = doc.id; // Use document ID as marker ID
-                    console.log(`Loaded marker position for ${markerId}: ${position.latitude}, ${position.longitude}`); // Debugging log
-                    L.marker([position.latitude, position.longitude]).addTo(map); // Add marker to map for each user
-                });
-            }).catch((error) => {
-                console.error("Error loading markers: ", error);
-            });
-        }
 
         // Load all markers when the page loads
         window.onload = function() {
