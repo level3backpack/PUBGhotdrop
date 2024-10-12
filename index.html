@@ -152,6 +152,7 @@
 
         // Save the marker position to Firestore
         function saveMarkerPosition(lat, lng) {
+            console.log(`Saving marker position: ${lat}, ${lng}`); // Debugging log
             db.collection("markers").doc("currentMarker").set({
                 latitude: lat,
                 longitude: lng
@@ -167,6 +168,7 @@
             db.collection("markers").doc("currentMarker").get().then((doc) => {
                 if (doc.exists) {
                     var position = doc.data();
+                    console.log(`Loaded marker position: ${position.latitude}, ${position.longitude}`); // Debugging log
                     marker = L.marker([position.latitude, position.longitude], { draggable: true }).addTo(map);
                     marker.on('dragend', onMarkerDrag);
                     dropCount++; // Increment drop count for loaded marker
@@ -201,6 +203,7 @@
         // Function to handle marker drag events
         function onMarkerDrag() {
             var position = marker.getLatLng();
+            console.log(`Marker dragged to: ${position.lat}, ${position.lng}`); // Debugging log
             saveMarkerPosition(position.lat, position.lng); // Save the new position
         }
     </script>
