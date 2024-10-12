@@ -97,9 +97,9 @@
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
     
-    <!-- Firebase SDK CDN Links -->
-    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+    <!-- Correct Firebase SDK CDN Links (Firebase 9 with compat mode) -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
     
     <script>
         // Your web app's Firebase configuration
@@ -190,18 +190,14 @@
             if (position) {
                 marker = L.marker([position.lat, position.lng]).addTo(map);
                 markerPlaced = true; // Mark that a marker has been placed
-                dropCount++; // Increase drop count since a marker was loaded
-                updateDropCounter(); // Update the counter UI
-                // Add the loaded location to the heatmap array
-                heatPoints.push([position.lat, position.lng]);
-                heat.setLatLngs(heatPoints); // Update the heatmap with new points
+                map.setView([position.lat, position.lng], map.getZoom()); // Set the map view to the loaded marker
             }
         }
 
-        // Function to handle map clicks
+        // Handle map clicks to place or move the marker
         function onMapClick(e) {
             if (!markerPlaced) {
-                // Add the marker for the first time
+                // Place the marker if it's not placed yet
                 marker = L.marker(e.latlng).addTo(map);
                 markerPlaced = true; // Mark that a marker has been placed
                 dropCount++; // Increment drop count
