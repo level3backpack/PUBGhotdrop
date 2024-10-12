@@ -122,7 +122,6 @@
         map.setView([4096, 4096], initialZoom); 
 
         var marker; // Store the marker
-        var markerPlaced = false; // Track if a marker has been placed
         var dropCount = 0; // Track number of drops
 
         // Function to update the position of the console box
@@ -188,24 +187,21 @@
             if (marker) {
                 // Update the marker's position
                 marker.setLatLng(e.latlng);
+                saveMarkerPosition(e.latlng.lat, e.latlng.lng); // Save updated marker position
             } else {
                 // Place a new marker
                 marker = L.marker(e.latlng, { draggable: true }).addTo(map);
-                dropCount++; // Increment drop count for the new drop
+                saveMarkerPosition(e.latlng.lat, e.latlng.lng); // Save marker position
+                dropCount++; // Increment drop count
                 updateDropCounter(); // Update the UI
-                saveMarkerPosition(e.latlng.lat, e.latlng.lng); // Save the marker position
+                marker.on('dragend', onMarkerDrag);
             }
         });
 
-        // Handle marker drag event
-        function onMarkerDrag(e) {
-            var position = e.target.getLatLng();
-            saveMarkerPosition(position.lat, position.lng); // Save updated marker position
-        }
-
-        // Add event listener for marker drag
-        if (marker) {
-            marker.on('dragend', onMarkerDrag);
+        // Function to handle marker drag events
+        function onMarkerDrag() {
+            var position = marker.getLatLng();
+            saveMarkerPosition(position.lat, position.lng); // Save the new position
         }
     </script>
 </body>
