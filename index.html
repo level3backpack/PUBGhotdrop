@@ -123,6 +123,7 @@
 
         var markers = {}; // Store markers with unique IDs
         var dropCount = 0; // Track number of drops
+        const userId = "user_123"; // Placeholder for user identification (could be replaced with an actual user ID)
 
         // Function to update the position of the console box
         function updateConsolePosition() {
@@ -151,59 +152,88 @@
         }
 
         // Save a marker position to Firestore
-        function saveMarkerPosition(markerId, lat, lng) {
-            console.log(`Saving marker position for ${markerId}: ${lat}, ${lng}`); // Debugging log
-            db.collection("markers").doc(markerId).set({
+        function saveMarkerPosition(lat, lng) {
+            console.log(`Saving marker position for ${userId}: ${lat}, ${lng}`); // Debugging log
+            db.collection("markers").doc(userId).set({
                 latitude: lat,
                 longitude: lng
             }).then(() => {
-                console.log(`Marker ${markerId} position saved to Firestore.`);
+                console.log(`Marker for ${userId} position saved to Firestore.`);
             }).catch((error) => {
                 console.error("Error saving marker position: ", error);
             });
         }
 
-        // Load all markers from Firestore
-        function loadMarkersFromFirestore() {
+        // Load the marker for the current user from Firestore
+        function loadMarkerFromFirestore() {
+            db.collection("markers").doc(userId).get().then((doc) => {
+                if (doc.exists) {
+                    var position = doc.data();
+                    console.log(`Loaded marker position for ${userId}: ${position.latitude}, ${position.longitude}`); // Debugging log
+                    var marker = L.marker([position.latitude, position.longitude], { draggable: true }).addTo(map);
+                    markers[userId] = marker; // Save marker in markers object
+                    dropCount++; // Increment drop count for loaded marker
+                    updateDropCounter(); // Update the UI
+
+                    // Add dragend event to update Firestore on drag
+                    marker.on('dragend', () => onMarkerDrag(marker));
+                }
+            }).catch((error) => {
+                console.error("Error loading marker position: ", error);
+            });
+        }
+
+        // Load the marker on page load
+        window.onload = function() {
+            loadMarkerFromFirestore();
+        };
+
+        // Add event listener for map clicks
+        map.on('click', (e) => {
+            // Only allow marker placement if the user has no marker
+            if (!markers[userId]) {
+                var lat = e.latlng.lat;
+                var lng = e.latlng.lng;
+                var marker = L.marker([lat, lng], { draggable: true }).addTo(map);
+                markers[userId] = marker; // Save marker in markers object
+                dropCount++; // Increment drop count
+                saveMarkerPosition(lat, lng); // Save position to Firestore
+                updateDropCounter(); // Update drop counter
+
+                // Add dragend event to update Firestore on drag
+                marker.on('dragend', () => onMarkerDrag(marker));
+            } else {
+                alert("You can only drop one marker!"); // Alert user if they try to drop a second marker
+            }
+        });
+
+        // Handle marker drag event
+        function onMarkerDrag(marker) {
+            var position = marker.getLatLng();
+            saveMarkerPosition(position.lat, position.lng); // Save updated marker position
+            console.log(`Marker dragged to: ${position.lat}, ${position.lng}`); // Debugging log
+        }
+
+        // Load all markers from Firestore to display on the map
+        function loadAllMarkersFromFirestore() {
             db.collection("markers").get().then((querySnapshot) => {
                 querySnapshot.forEach((doc) => {
                     var position = doc.data();
                     var markerId = doc.id; // Use document ID as marker ID
                     console.log(`Loaded marker position for ${markerId}: ${position.latitude}, ${position.longitude}`); // Debugging log
-                    var marker = L.marker([position.latitude, position.longitude], { draggable: true }).addTo(map);
-                    marker.on('dragend', () => onMarkerDrag(markerId, marker));
-                    markers[markerId] = marker; // Save marker in markers object
-                    dropCount++; // Increment drop count for each loaded marker
+                    L.marker([position.latitude, position.longitude]).addTo(map); // Add marker to map for each user
                 });
-                updateDropCounter(); // Update the UI
             }).catch((error) => {
-                console.error("Error loading marker positions: ", error);
+                console.error("Error loading markers: ", error);
             });
         }
 
-        // Load the markers on page load
+        // Load all markers when the page loads
         window.onload = function() {
-            loadMarkersFromFirestore();
+            loadAllMarkersFromFirestore(); // Load all markers
+            loadMarkerFromFirestore(); // Load the current user's marker
         };
 
-        // Add event listener for map clicks
-        map.on('click', function(e) {
-            var markerId = `marker_${Date.now()}`; // Create a unique ID for each marker
-            var marker = L.marker(e.latlng, { draggable: true }).addTo(map);
-            saveMarkerPosition(markerId, e.latlng.lat, e.latlng.lng); // Save marker position
-            markers[markerId] = marker; // Save marker in markers object
-            dropCount++; // Increment drop count
-            updateDropCounter(); // Update drop counter
-
-            marker.on('dragend', () => onMarkerDrag(markerId, marker)); // Add dragend listener
-        });
-
-        // Handle marker drag event
-        function onMarkerDrag(markerId, marker) {
-            var position = marker.getLatLng();
-            saveMarkerPosition(markerId, position.lat, position.lng); // Save updated marker position
-            console.log(`Marker ${markerId} dragged to: ${position.lat}, ${position.lng}`); // Debugging log
-        }
     </script>
 </body>
 </html>
