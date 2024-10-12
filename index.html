@@ -106,9 +106,14 @@
                 addMarkerToFirestore(e.latlng.lat, e.latlng.lng);
             } else {
                 // Update the marker position
-                marker.setLatLng(e.latlng);
-                // Save the new position to local storage
-                saveMarkerPosition(e.latlng.lat, e.latlng.lng);
+                const oldLatLng = marker.getLatLng();
+                
+                // If the new position is different, update it
+                if (oldLatLng.lat !== e.latlng.lat || oldLatLng.lng !== e.latlng.lng) {
+                    marker.setLatLng(e.latlng);
+                    // Save the new position to local storage
+                    saveMarkerPosition(e.latlng.lat, e.latlng.lng);
+                }
             }
         }
 
