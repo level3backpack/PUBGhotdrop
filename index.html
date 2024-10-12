@@ -121,7 +121,7 @@
         var initialZoom = -2; 
         map.setView([4096, 4096], initialZoom); 
 
-        var marker; // Store the marker
+        var markers = {}; // Store markers with unique IDs
         var dropCount = 0; // Track number of drops
 
         // Function to update the position of the console box
@@ -150,61 +150,59 @@
             updateConsolePosition();
         }
 
-        // Save the marker position to Firestore
-        function saveMarkerPosition(lat, lng) {
-            console.log(`Saving marker position: ${lat}, ${lng}`); // Debugging log
-            db.collection("markers").doc("currentMarker").set({
+        // Save a marker position to Firestore
+        function saveMarkerPosition(markerId, lat, lng) {
+            console.log(`Saving marker position for ${markerId}: ${lat}, ${lng}`); // Debugging log
+            db.collection("markers").doc(markerId).set({
                 latitude: lat,
                 longitude: lng
             }).then(() => {
-                console.log("Marker position saved to Firestore.");
+                console.log(`Marker ${markerId} position saved to Firestore.`);
             }).catch((error) => {
                 console.error("Error saving marker position: ", error);
             });
         }
 
-        // Load the marker position from Firestore
-        function loadMarkerPosition() {
-            db.collection("markers").doc("currentMarker").get().then((doc) => {
-                if (doc.exists) {
+        // Load all markers from Firestore
+        function loadMarkersFromFirestore() {
+            db.collection("markers").get().then((querySnapshot) => {
+                querySnapshot.forEach((doc) => {
                     var position = doc.data();
-                    console.log(`Loaded marker position: ${position.latitude}, ${position.longitude}`); // Debugging log
-                    marker = L.marker([position.latitude, position.longitude], { draggable: true }).addTo(map);
-                    marker.on('dragend', onMarkerDrag);
-                    dropCount++; // Increment drop count for loaded marker
-                    updateDropCounter(); // Update the UI
-                }
+                    var markerId = doc.id; // Use document ID as marker ID
+                    console.log(`Loaded marker position for ${markerId}: ${position.latitude}, ${position.longitude}`); // Debugging log
+                    var marker = L.marker([position.latitude, position.longitude], { draggable: true }).addTo(map);
+                    marker.on('dragend', () => onMarkerDrag(markerId, marker));
+                    markers[markerId] = marker; // Save marker in markers object
+                    dropCount++; // Increment drop count for each loaded marker
+                });
+                updateDropCounter(); // Update the UI
             }).catch((error) => {
-                console.error("Error loading marker position: ", error);
+                console.error("Error loading marker positions: ", error);
             });
         }
 
-        // Load the marker on page load
+        // Load the markers on page load
         window.onload = function() {
-            loadMarkerPosition();
+            loadMarkersFromFirestore();
         };
 
         // Add event listener for map clicks
         map.on('click', function(e) {
-            if (marker) {
-                // Update the marker's position
-                marker.setLatLng(e.latlng);
-                saveMarkerPosition(e.latlng.lat, e.latlng.lng); // Save updated marker position
-            } else {
-                // Place a new marker
-                marker = L.marker(e.latlng, { draggable: true }).addTo(map);
-                saveMarkerPosition(e.latlng.lat, e.latlng.lng); // Save marker position
-                dropCount++; // Increment drop count
-                updateDropCounter(); // Update the UI
-                marker.on('dragend', onMarkerDrag);
-            }
+            var markerId = `marker_${Date.now()}`; // Create a unique ID for each marker
+            var marker = L.marker(e.latlng, { draggable: true }).addTo(map);
+            saveMarkerPosition(markerId, e.latlng.lat, e.latlng.lng); // Save marker position
+            markers[markerId] = marker; // Save marker in markers object
+            dropCount++; // Increment drop count
+            updateDropCounter(); // Update drop counter
+
+            marker.on('dragend', () => onMarkerDrag(markerId, marker)); // Add dragend listener
         });
 
-        // Function to handle marker drag events
-        function onMarkerDrag() {
+        // Handle marker drag event
+        function onMarkerDrag(markerId, marker) {
             var position = marker.getLatLng();
-            console.log(`Marker dragged to: ${position.lat}, ${position.lng}`); // Debugging log
-            saveMarkerPosition(position.lat, position.lng); // Save the new position
+            saveMarkerPosition(markerId, position.lat, position.lng); // Save updated marker position
+            console.log(`Marker ${markerId} dragged to: ${position.lat}, ${position.lng}`); // Debugging log
         }
     </script>
 </body>
