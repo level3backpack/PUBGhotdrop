@@ -33,10 +33,16 @@
 
         let userId = null; // Placeholder for authenticated user's unique ID
         let userMarker = null; // Placeholder for the user's marker
-        let map = L.map('map').setView([51.505, -0.09], 13);
 
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors'
+        // Replace with your Erangel tile layer URL
+        let map = L.map('map').setView([0, 0], 3); // Adjust to Erangel's actual bounds
+
+        L.tileLayer('https://your-erangel-tile-layer-url/{z}/{x}/{y}.png', {
+            attribution: '© Your Map Source',
+            maxZoom: 5, // Adjust based on your tile layer
+            minZoom: 1, // Adjust based on your tile layer
+            tileSize: 512, // Adjust based on tile size if required
+            zoomOffset: -1 // Adjust based on tile zoom level if required
         }).addTo(map);
 
         // Anonymous sign-in
@@ -59,7 +65,7 @@
                 if (doc.exists) {
                     const data = doc.data();
                     userMarker = L.marker([data.lat, data.lng], {draggable: true}).addTo(map);
-                    map.setView([data.lat, data.lng], 13);
+                    map.setView([data.lat, data.lng], 5); // Adjust to Erangel zoom level
                     userMarker.on('dragend', function (e) {
                         saveMarker(userMarker.getLatLng());
                     });
