@@ -7,10 +7,31 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
     <style>
         #map { height: 100vh; }
+        .marker-counter {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: white;
+            padding: 10px;
+            z-index: 1000;
+            border-radius: 4px;
+        }
+        .clear-button {
+            background-color: red;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
     <div id="map"></div>
+    <div class="marker-counter">
+        Drops: <span id="dropCounter">0</span>
+        <button class="clear-button" id="clearButton">X</button>
+    </div>
 
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
@@ -30,58 +51,54 @@
         firebase.initializeApp(firebaseConfig);
 
         const db = firebase.firestore();
+        let userId = null;
+        let userMarker = null;
 
-        let userId = null; // Placeholder for authenticated user's unique ID
-        let userMarker = null; // Placeholder for the user's marker
-
-        // Replace with your Erangel tile layer URL
-        let map = L.map('https://dimgrey-dog-662916.hostingersite.com/wp-content/uploads/2024/10/erangel.png').setView([0, 0], 3); // Adjust to Erangel's actual bounds
-
+        // Set up the map centered on Erangel's custom coordinates
+        const map = L.map('map').setView([0, 0], 3); // Adjust to Erangel bounds
         L.tileLayer('https://your-erangel-tile-layer-url/{z}/{x}/{y}.png', {
             attribution: '© Your Map Source',
-            maxZoom: 5, // Adjust based on your tile layer
-            minZoom: 1, // Adjust based on your tile layer
-            tileSize: 512, // Adjust based on tile size if required
-            zoomOffset: -1 // Adjust based on tile zoom level if required
+            maxZoom: 5,
+            minZoom: 1,
+            tileSize: 512,
+            zoomOffset: -1
         }).addTo(map);
 
-        // Anonymous sign-in
+        // Handle anonymous sign-in and marker loading
         firebase.auth().signInAnonymously()
             .then((userCredential) => {
-                userId = userCredential.user.uid; // Get unique user ID
+                userId = userCredential.user.uid;
                 console.log("Signed in as anonymous user:", userId);
 
-                // Load the user's marker from Firestore and all other markers
                 loadUserMarker();
                 loadAllMarkers();
+                updateMarkerCounter();
             })
             .catch((error) => {
                 console.error("Error during anonymous sign-in:", error);
             });
 
-        // Function to load the user's own marker from Firestore
+        // Load the user's marker from Firestore
         function loadUserMarker() {
             db.collection("markers").doc(userId).get().then((doc) => {
                 if (doc.exists) {
                     const data = doc.data();
-                    userMarker = L.marker([data.lat, data.lng], {draggable: true}).addTo(map);
-                    map.setView([data.lat, data.lng], 5); // Adjust to Erangel zoom level
+                    userMarker = L.marker([data.lat, data.lng], { draggable: true }).addTo(map);
+                    map.setView([data.lat, data.lng], 5);
                     userMarker.on('dragend', function (e) {
                         saveMarker(userMarker.getLatLng());
                     });
-                } else {
-                    console.log("No marker found for this user.");
                 }
             }).catch((error) => {
                 console.error("Error loading user marker:", error);
             });
         }
 
-        // Function to load all markers (excluding the user's own marker) from Firestore
+        // Load all markers from Firestore
         function loadAllMarkers() {
             db.collection("markers").get().then((querySnapshot) => {
                 querySnapshot.forEach((doc) => {
-                    if (doc.id !== userId) { // Exclude user's own marker
+                    if (doc.id !== userId) {
                         const data = doc.data();
                         L.marker([data.lat, data.lng]).addTo(map);
                     }
@@ -91,7 +108,7 @@
             });
         }
 
-        // Function to save or update the user's marker in Firestore
+        // Save the user's marker to Firestore
         function saveMarker(latlng) {
             db.collection("markers").doc(userId).set({
                 lat: latlng.lat,
@@ -99,23 +116,47 @@
             })
             .then(() => {
                 console.log("Marker successfully saved!");
+                updateMarkerCounter();
             })
             .catch((error) => {
                 console.error("Error saving marker:", error);
             });
         }
 
-        // Click event to add or move the user's marker
+        // Update the drop counter
+        function updateMarkerCounter() {
+            db.collection("markers").get().then((querySnapshot) => {
+                const count = querySnapshot.size;
+                document.getElementById('dropCounter').textContent = count;
+            }).catch((error) => {
+                console.error("Error updating marker counter:", error);
+            });
+        }
+
+        // Add or move marker on map click
         map.on('click', function(e) {
             if (userMarker) {
-                userMarker.setLatLng(e.latlng); // Move marker to new location
+                userMarker.setLatLng(e.latlng);
             } else {
-                userMarker = L.marker(e.latlng, {draggable: true}).addTo(map); // Add new marker
+                userMarker = L.marker(e.latlng, { draggable: true }).addTo(map);
                 userMarker.on('dragend', function (e) {
                     saveMarker(userMarker.getLatLng());
                 });
             }
-            saveMarker(e.latlng); // Save the new marker location to Firestore
+            saveMarker(e.latlng);
+        });
+
+        // Clear user's marker when the X button is clicked
+        document.getElementById('clearButton').addEventListener('click', function() {
+            if (userMarker) {
+                map.removeLayer(userMarker);
+                db.collection("markers").doc(userId).delete().then(() => {
+                    console.log("Marker successfully removed!");
+                    updateMarkerCounter();
+                }).catch((error) => {
+                    console.error("Error removing marker:", error);
+                });
+            }
         });
     </script>
 </body>
